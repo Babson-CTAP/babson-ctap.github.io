@@ -27,6 +27,10 @@
   "python-envs.defaultEnvManager": "ms-python.python:conda",
   "python-envs.defaultPackageManager": "ms-python.python:conda",
 
+  // Workspace trust: students only open their own course folder, so skip
+  // Restricted Mode (it blocks the Python interpreter, debugging and tasks).
+  "security.workspace.trust.enabled": false,
+
   // Jupyter
   "jupyter.jupyterServerType": "local",
   "notebook.dragAndDropEnabled": false,

@@ -65,6 +65,7 @@ if (Test-Path $settingsPath) {
             'gitlens.ai.enabled'            = $false
             'python.terminal.activateEnvironment' = $false
             'jupyter.jupyterServerType'     = 'local'
+            'security.workspace.trust.enabled' = $false
         }
         foreach ($k in $checks.Keys) {
             $val = $s.$k
