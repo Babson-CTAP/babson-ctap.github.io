@@ -284,7 +284,8 @@ foreach ($p in $psProfiles) { Remove-IfExists $p }
 # =============================================================
 Write-Banner '7. Course Setup Files'
 
-$courseRoot = Split-Path -Parent $MyInvocation.MyCommand.Path   # C:\ctap
+# Always C:\ctap -- never the folder this script happens to be run from.
+$courseRoot = 'C:\ctap'
 Remove-IfExists "$courseRoot\.student_config.txt" '.student_config.txt'
 Remove-IfExists "$courseRoot\student_repo"         'student_repo\'
 Remove-IfExists "$courseRoot\class_repo"           'class_repo\'
@@ -369,6 +370,7 @@ Remove-PathEntry 'PowerShell\7'                                          'Machin
 # =============================================================
 Write-Banner '11. Course folder'
 Set-Location $env:SystemRoot
+if ($courseRoot -ne 'C:\ctap') { Write-Fail "Refusing to delete $courseRoot"; exit 1 }   # safety check
 Remove-IfExists $courseRoot "$courseRoot (scripts, logs)"
 if (Test-Path $courseRoot) {
     Write-Warn "$courseRoot is open in another window. Close that window and delete the folder by hand."
