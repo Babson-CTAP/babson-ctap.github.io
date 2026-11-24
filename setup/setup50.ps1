@@ -164,9 +164,23 @@ function Invoke-Install {
     }
     Write-OK 'No conflicting Python installs'
 
-    # -- machine-wide tools via winget --
+    # -- PowerShell 7: classic MSI installer, downloaded directly.
+    #    (From 7.7 on, winget only offers a per-user Store-style package,
+    #     which cannot be installed machine-wide.)
+    if (Test-Path $Pwsh) { Write-OK 'PowerShell 7 already installed' }
+    else {
+        Write-Step 'Installing PowerShell 7...'
+        $msi = Join-Path $env:TEMP 'PowerShell-7-win-x64.msi'
+        try { Invoke-WebRequest -Uri $Cfg.PwshMsiUrl -OutFile $msi -UseBasicParsing }
+        catch { Stop-Setup "Could not download PowerShell 7 from $($Cfg.PwshMsiUrl)" }
+        $proc = Start-Process msiexec.exe -Wait -PassThru -ArgumentList `
+            "/i `"$msi`" /qn /norestart ADD_PATH=1 REGISTER_MANIFEST=1 ENABLE_PSREMOTING=0 ADD_EXPLORER_CONTEXT_MENU_OPENPOWERSHELL=0"
+        if (Test-Path $Pwsh) { Write-OK 'PowerShell 7 installed' }
+        else { Stop-Setup "PowerShell 7 did not install (msiexec exit code $($proc.ExitCode))." }
+    }
+
+    # -- other machine-wide tools via winget --
     $tools = @(
-        @{ Id = 'Microsoft.PowerShell';       Name = 'PowerShell 7';       Check = $Pwsh },
         @{ Id = 'Git.Git';                    Name = 'Git';                Check = 'C:\Program Files\Git\cmd\git.exe' },
         @{ Id = 'GitHub.cli';                 Name = 'GitHub CLI';         Check = 'C:\Program Files\GitHub CLI\gh.exe' },
         @{ Id = 'Microsoft.VisualStudioCode'; Name = 'Visual Studio Code'; Check = 'C:\Program Files\Microsoft VS Code\Code.exe' }
@@ -176,7 +190,7 @@ function Invoke-Install {
         if (Test-Path $t.Check) { Write-OK "$($t.Name) already installed"; continue }
         Write-Step "Installing $($t.Name)..."
         winget install --id $t.Id --exact --source winget --scope machine --silent `
-            --accept-package-agreements --accept-source-agreements 2>&1 | Out-Null
+            --accept-package-agreements --accept-source-agreements 2>&1 | Out-Host
         if (Test-Path $t.Check) { Write-OK "$($t.Name) installed" }
         else { Stop-Setup "$($t.Name) did not install (winget exit code $LASTEXITCODE)." }
     }
@@ -212,7 +226,7 @@ function Install-Anaconda {
     $override = '/S /InstallationType=JustMe /RegisterPython=1 /AddToPath=0 /D={0}' -f $AnacondaDir
     Write-Step 'Installing Anaconda...'
     winget install --id Anaconda.Anaconda3 --exact --source winget --scope user --silent `
-        --accept-package-agreements --accept-source-agreements --override $override 2>&1 | Out-Null
+        --accept-package-agreements --accept-source-agreements --override $override 2>&1 | Out-Host
 
     if (-not (Test-Path $PythonExe)) {
         Write-Warn 'winget could not install Anaconda -- downloading the installer directly...'

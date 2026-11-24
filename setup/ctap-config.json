@@ -1,14 +1,20 @@
 {
-  "CourseName":     "OIM 3600 - Computational Thinking with AI and Python",
-  "Term":           "Spring 2027",
-  "Org":            "Babson-CTAP",
-  "Classroom":      "s27",
-  "Assignment":     "ctap",
-  "TemplateRepo":   "ctap-template",
+  "CourseName": "OIM 3600 - Computational Thinking with AI and Python",
+  "Term": "Spring 2027",
+  "Org": "Babson-CTAP",
+  "Classroom": "s27",
+  "Assignment": "ctap",
+  "TemplateRepo": "ctap-template",
   "UsernameSuffix": "spring2027",
-  "Root":           "C:\\ctap",
-  "SiteUrl":        "https://babson-ctap.github.io/setup",
-  "MinCondaMajor":  23,
-  "InstructorAccounts": ["rslotpole-babson", "rsail"],
-  "TestAccounts":       ["pp353-spring2027"]
+  "Root": "C:\\ctap",
+  "SiteUrl": "https://babson-ctap.github.io/setup",
+  "MinCondaMajor": 23,
+  "PwshMsiUrl": "https://github.com/PowerShell/PowerShell/releases/download/v7.6.0/PowerShell-7.6.0-win-x64.msi",
+  "InstructorAccounts": [
+    "rslotpole-babson",
+    "rsail"
+  ],
+  "TestAccounts": [
+    "pp353-spring2027"
+  ]
 }
