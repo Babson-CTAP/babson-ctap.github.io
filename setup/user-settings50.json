@@ -23,6 +23,12 @@
   "python.terminal.executeInFileDir": false,
   "python.createEnvironment.trigger": "off",
 
+  // Turn off the Python Environments extension: it shows a false
+  // "No Python found / install uv" prompt because it does not count
+  // Anaconda as a system Python. The Python extension still uses Anaconda.
+  "python.useEnvironmentsExtension": false,
+  "python.condaPath": "C:/Users/WINDOWS-USER-NAME/anaconda3/Scripts/conda.exe",
+
   // Use Anaconda/Conda to manage Python environments and install packages.
   "python-envs.defaultEnvManager": "ms-python.python:conda",
   "python-envs.defaultPackageManager": "ms-python.python:conda",

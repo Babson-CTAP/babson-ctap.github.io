@@ -66,6 +66,7 @@ if (Test-Path $settingsPath) {
             'python.terminal.activateEnvironment' = $false
             'jupyter.jupyterServerType'     = 'local'
             'security.workspace.trust.enabled' = $false
+            'python.useEnvironmentsExtension'  = $false
         }
         foreach ($k in $checks.Keys) {
             $val = $s.$k
