@@ -175,7 +175,7 @@ function Invoke-Install {
     foreach ($t in $tools) {
         if (Test-Path $t.Check) { Write-OK "$($t.Name) already installed"; continue }
         Write-Step "Installing $($t.Name)..."
-        winget install --id $t.Id --exact --scope machine --silent `
+        winget install --id $t.Id --exact --source winget --scope machine --silent `
             --accept-package-agreements --accept-source-agreements 2>&1 | Out-Null
         if (Test-Path $t.Check) { Write-OK "$($t.Name) installed" }
         else { Stop-Setup "$($t.Name) did not install (winget exit code $LASTEXITCODE)." }
@@ -211,7 +211,7 @@ function Install-Anaconda {
 
     $override = '/S /InstallationType=JustMe /RegisterPython=1 /AddToPath=0 /D={0}' -f $AnacondaDir
     Write-Step 'Installing Anaconda...'
-    winget install --id Anaconda.Anaconda3 --exact --scope user --silent `
+    winget install --id Anaconda.Anaconda3 --exact --source winget --scope user --silent `
         --accept-package-agreements --accept-source-agreements --override $override 2>&1 | Out-Null
 
     if (-not (Test-Path $PythonExe)) {
