@@ -1,1 +1,119 @@
-<h1>OIM 3600 - CTAP Spring 2027</h1><p>Setup instructions coming soon.</p>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OIM 3600 — Setup</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600;700&display=swap');
+  * { box-sizing: border-box; }
+  body { font-family: 'IBM Plex Sans', sans-serif; color: #111; background: #fff; line-height: 1.65; margin: 0; padding: 2rem 1rem; }
+  .container { max-width: 820px; margin: 0 auto; }
+  header { border-left: 4px solid #000; padding-left: 1.25rem; margin-bottom: 2rem; }
+  h1 { font-size: 1.8rem; margin: 0; }
+  header p { color: #444; margin: .3rem 0 0; }
+  .step { border: 1px solid #aaa; border-radius: 12px; margin-bottom: 1.5rem; overflow: hidden; }
+  .step-head { display: flex; align-items: center; gap: .9rem; background: #f5f5f5; border-bottom: 1px solid #aaa; padding: .8rem 1.25rem; font-weight: 700; }
+  .num { background: #111; color: #fff; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: .85rem; flex-shrink: 0; }
+  .step-body { padding: 1rem 1.25rem; }
+  .step-body ol, .step-body ul { padding-left: 1.4rem; margin: .4rem 0; }
+  .step-body li { margin: .3rem 0; }
+  code { font-family: 'IBM Plex Mono', monospace; background: #f0f0f0; border: 1px solid #ccc; border-radius: 4px; padding: .05em .35em; font-size: .9em; }
+  .cmd { display: flex; align-items: stretch; margin: .75rem 0; border: 1px solid #999; border-radius: 6px; overflow: hidden; }
+  .cmd pre { flex: 1; margin: 0; padding: .75rem 1rem; background: #111; color: #fff; font-family: 'IBM Plex Mono', monospace; font-size: .95rem; white-space: pre-wrap; word-break: break-all; }
+  .cmd button { border: none; background: #2a7a2a; color: #fff; font-weight: 700; padding: 0 1.2rem; cursor: pointer; font-size: .95rem; }
+  .cmd button:hover { background: #22662a; }
+  .note { border-left: 3px solid #888; background: #f9f9f9; padding: .6rem .9rem; margin: .75rem 0; font-size: .93rem; }
+  .note.warn { border-color: #c00; }
+  .note.ok { border-color: #2a7a2a; }
+  .faq h2 { font-size: 1.2rem; border-bottom: 2px solid #ccc; padding-bottom: .4rem; margin-top: 2.5rem; }
+  .faq .q { font-weight: 700; margin-top: 1rem; }
+  .faq .a { color: #444; font-size: .95rem; }
+  footer { margin-top: 2.5rem; padding-top: 1rem; border-top: 1px solid #ddd; color: #666; font-size: .85rem; text-align: center; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <h1>OIM 3600 — Course Setup</h1>
+  <p>Computational Thinking with AI and Python · Spring 2027 · Babson College</p>
+</header>
+
+<div class="step">
+  <div class="step-head"><div class="num">1</div>Create your class GitHub account</div>
+  <div class="step-body">
+    <ol>
+      <li>Go to <a href="https://github.com/signup">github.com/signup</a>.</li>
+      <li>Email: your Babson email. If it is already used by another GitHub account, use a different email.</li>
+      <li>Username: your first name, all lowercase, then <code>-spring2027</code>. Example: <code>alex-spring2027</code>.</li>
+      <li>Finish the puzzle and enter the code GitHub emails you.</li>
+    </ol>
+    <div class="note warn">The username must match exactly: lowercase letters, one hyphen, <code>-spring2027</code>. No last name, numbers or dots. If two students share a first name, your instructor will tell you to add your last initial (<code>julioa-spring2027</code>).</div>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-head"><div class="num">2</div>Wait for the GitHub invitation</div>
+  <div class="step-body">
+    <p>Your instructor adds you to the class. You will get an email from GitHub inviting you to <strong>Babson-CTAP</strong>. You do <strong>not</strong> need to click anything in it — setup accepts it for you. The invitation expires after 7 days, so run Step 3 soon after it arrives.</p>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-head"><div class="num">3</div>Run the setup command</div>
+  <div class="step-body">
+    <ol>
+      <li>Make sure you are signed in to your class GitHub account in your web browser.</li>
+      <li>Press the <strong>Windows key</strong>, type <strong>Windows PowerShell</strong>, and press Enter. (Do <em>not</em> choose Run as administrator.)</li>
+      <li>Click <strong>Copy</strong> below, then <strong>right-click</strong> inside the PowerShell window to paste, and press <strong>Enter</strong>.</li>
+    </ol>
+    <div class="cmd"><pre id="cmd">irm https://babson-ctap.github.io/install.ps1 | iex</pre><button id="copyBtn" type="button">Copy</button></div>
+    <p>During setup you will be asked two things:</p>
+    <ul>
+      <li><strong>"Do you want to allow this app to make changes?"</strong> — click <strong>Yes</strong>.</li>
+      <li><strong>A GitHub code</strong> — write down the 8-character code, press Enter, type the code in the browser, and click <strong>Authorize</strong>. If asked anything else, press Enter.</li>
+    </ul>
+    <div class="note warn">Setup takes 20–30 minutes. Keep the laptop plugged in and awake, and do not close the windows. Do <strong>not</strong> press Ctrl+C — it cancels setup.</div>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-head"><div class="num">4</div>Open the course in VS Code</div>
+  <div class="step-body">
+    <p>When you see <strong>SETUP COMPLETE</strong>, double-click the <strong>OIM3600</strong> shortcut on your Desktop. Your course files are in <code>student_repo</code>. Work only there.</p>
+    <div class="note ok">At the start of every class: open the OIM3600 shortcut, open the terminal (<strong>View → Terminal</strong>) and run <code>..\update50.ps1</code>. It saves your work and downloads the latest course files.</div>
+  </div>
+</div>
+
+<div class="faq">
+  <h2>If something goes wrong</h2>
+  <div class="q">Setup stopped with a red [FAIL] message</div>
+  <div class="a">Read the message, fix what it says, and run the Step 3 command again. Running it again is always safe — it skips what is already done. If you are stuck, email your instructor the log file it names (in <code>C:\ctap\logs</code>).</div>
+  <div class="q">"Your instructor has not added you to the class yet"</div>
+  <div class="a">Email your instructor your GitHub username. Run Step 3 again after you receive the GitHub invitation email.</div>
+  <div class="q">"You logged in as … Use your class account"</div>
+  <div class="a">You authorized a different GitHub account. Sign out of GitHub in your browser, sign in to your class account, and run Step 3 again.</div>
+  <div class="q">I clicked No on the Windows prompt</div>
+  <div class="a">Run Step 3 again and click Yes.</div>
+</div>
+
+<footer>OIM 3600 · Babson College · Questions: <a href="mailto:rslotpole@babson.edu">rslotpole@babson.edu</a></footer>
+</div>
+<script>
+  document.getElementById('copyBtn').addEventListener('click', function () {
+    var text = document.getElementById('cmd').textContent;
+    var btn = this;
+    var done = function () { btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 2000); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, function () { fallback(); });
+    } else { fallback(); }
+    function fallback() {
+      var r = document.createRange(); r.selectNodeContents(document.getElementById('cmd'));
+      var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+      try { document.execCommand('copy'); done(); } catch (e) {}
+    }
+  });
+</script>
+</body>
+</html>
