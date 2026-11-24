@@ -21,6 +21,7 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+$ProgressPreference   = 'SilentlyContinue'   # progress bars make Windows PowerShell downloads very slow
 
 # =============================================================
 #  SECTION 1 -- Config and helpers
@@ -368,9 +369,17 @@ function Connect-GitHub {
         Stop-Setup "Your instructor has not added '$user' to the class yet. Email your instructor your username, wait for confirmation, then run setup again."
     }
 
-    # Accept the assignment (also accepts the org invitation)
-    $out = (gh student accept $Cfg.Org $Cfg.Classroom $Cfg.Assignment 2>&1 | Out-String)
-    if ($LASTEXITCODE -ne 0 -and $out -notmatch 'already accepted') {
+    # Accept the assignment (also accepts the org invitation).
+    # Right after the org invitation is accepted, GitHub can take a few
+    # seconds to activate the class team membership -- retry in that case.
+    for ($try = 1; $try -le 4; $try++) {
+        $out = (gh student accept $Cfg.Org $Cfg.Classroom $Cfg.Assignment 2>&1 | Out-String)
+        $ok  = ($LASTEXITCODE -eq 0) -or ($out -match 'already accepted')
+        if ($ok -or $out -notmatch "isn't available to you" -or $try -eq 4) { break }
+        Write-Step 'Waiting for GitHub to finish adding you to the class...'
+        Start-Sleep -Seconds 15
+    }
+    if (-not $ok) {
         Write-Host $out
         Stop-Setup 'Accepting the course repository failed (message above).'
     }
