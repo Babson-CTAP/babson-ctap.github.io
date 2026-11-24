@@ -1,6 +1,6 @@
 # =============================================================
 #  OIM 3600 - CTAP -- Environment Reset Script
-#  Reverses everything done by setup50.ps1. Scripts in C:\ctap are kept.
+#  Reverses everything done by setup50.ps1, including C:\ctap.
 #
 #  Run from Windows PowerShell 5 as Administrator:
 #    1. Press Start -> type: Windows PowerShell
@@ -55,6 +55,31 @@ function Remove-PathEntry {
     }
 }
 
+# Uninstall through Windows' own uninstall entries (no winget, so the
+# Microsoft Store certificate problem cannot block it).
+function Uninstall-ByName {
+    param([string]$Pattern, [string]$Label)
+    Write-Step "Uninstalling $Label..."
+    $roots = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*',
+             'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*',
+             'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*'
+    $find = { Get-ItemProperty $roots -ErrorAction SilentlyContinue |
+              Where-Object { $_.PSObject.Properties['DisplayName'] -and $_.DisplayName -like $Pattern } }
+    $apps = & $find
+    if (-not $apps) { Write-Skip "$Label not installed"; return }
+    foreach ($a in $apps) {
+        $u = "$($a.UninstallString)"
+        if ($u -match 'msiexec') {
+            Start-Process msiexec.exe -ArgumentList "/x $($a.PSChildName) /qn /norestart" -Wait
+        } else {
+            $exe = if ($u -match '^"([^"]+)"') { $Matches[1] } else { ($u -split ' ')[0] }
+            if (Test-Path $exe) { Start-Process $exe -ArgumentList '/VERYSILENT /NORESTART /SUPPRESSMSGBOXES' -Wait }
+        }
+    }
+    if (& $find) { Write-Warn "$Label may still be installed -- remove it in Settings > Apps" }
+    else         { Write-OK   "$Label removed" }
+}
+
 function Uninstall-WingetApp {
     param([string]$Id, [string]$Name)
     Write-Step "Uninstalling $Name..."
@@ -92,7 +117,7 @@ Write-Host '    - Delete C:\ctap\student_repo and class_repo (unpushed student w
 Write-Host '    - Clean PATH entries and registry uninstall keys' -ForegroundColor Yellow
 Write-Host '    - Remove OIM3600 desktop shortcut' -ForegroundColor Yellow
 Write-Host ''
-Write-Host '  The scripts in C:\ctap are NOT deleted.' -ForegroundColor DarkGray
+Write-Host '  C:\ctap is deleted too (the setup command recreates it).' -ForegroundColor DarkGray
 Write-Host ''
 $confirm = Read-Host '  Type RESET to continue, anything else to cancel'
 if ($confirm -ne 'RESET') {
@@ -140,11 +165,10 @@ if (Test-Path $anacondaUninstaller) {
 } else {
     Write-Skip 'Anaconda uninstaller not found at expected path'
 }
-winget uninstall --id Anaconda.Anaconda3 --silent 2>&1 | Out-Null
 
-Uninstall-WingetApp 'Git.Git'                    'Git for Windows'
-Uninstall-WingetApp 'GitHub.cli'                 'GitHub CLI'
-Uninstall-WingetApp 'Microsoft.VisualStudioCode' 'Visual Studio Code'
+Uninstall-ByName 'Git'                             'Git for Windows'
+Uninstall-ByName 'GitHub CLI'                      'GitHub CLI'
+Uninstall-ByName 'Microsoft Visual Studio Code*'   'Visual Studio Code'
 # PowerShell 7 is uninstalled last (section 9) in case we are running inside it
 
 # =============================================================
@@ -302,8 +326,7 @@ $removePatterns = @(
     '*GitHub CLI*',
     '*Visual Studio Code*',
     '*Anaconda*',
-    '*Miniconda*',
-    '*PowerShell 7*'
+    '*Miniconda*'
 )
 
 foreach ($hive in $uninstallHives) {
@@ -335,21 +358,28 @@ Write-Warn 'Uninstalling PowerShell 7 last. If you are running this script'
 Write-Warn 'inside pwsh, the session will end after this step.'
 Write-Host ''
 
-Uninstall-WingetApp 'Microsoft.PowerShell' 'PowerShell 7'
+Uninstall-ByName 'PowerShell 7*' 'PowerShell 7'
 
 Remove-IfExists 'C:\Program Files\PowerShell\7'                          'PS7 install folder'
 Remove-IfExists "$env:LOCALAPPDATA\Microsoft\powershell"                 'PS7 LocalAppData'
 Remove-PathEntry 'PowerShell\7'                                          'Machine'
 
 # =============================================================
+#  11. Remove C:\ctap itself (setup's install command recreates it)
+# =============================================================
+Write-Banner '11. Course folder'
+Set-Location $env:SystemRoot
+Remove-IfExists $courseRoot "$courseRoot (scripts, logs)"
+if (Test-Path $courseRoot) {
+    Write-Warn "$courseRoot is open in another window. Close that window and delete the folder by hand."
+}
+
+# =============================================================
 #  Summary
 # =============================================================
 Write-Banner 'RESET COMPLETE'
-Write-Host '  The machine should now be in a clean pre-setup state.' -ForegroundColor White
+Write-Host '  The machine is back to its pre-setup state.' -ForegroundColor White
 Write-Host ''
-Write-Host '  Still in C:\ctap (untouched):' -ForegroundColor DarkGray
-Write-Host '    setup50.ps1, update50.ps1, validate-env50.ps1, reset-env50.ps1, ctap-config.json, user-settings50.json' -ForegroundColor DarkGray
-Write-Host ''
-Write-Host '  Recommended: restart the computer before running setup50.ps1 again' -ForegroundColor Yellow
-Write-Host '  to ensure PATH and environment changes take full effect.' -ForegroundColor Yellow
+Write-Host '  Recommended: restart the computer, then run the setup command' -ForegroundColor Yellow
+Write-Host '  from https://babson-ctap.github.io' -ForegroundColor Yellow
 Write-Host ''

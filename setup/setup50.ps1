@@ -76,6 +76,18 @@ function Test-IsAdmin {
     return $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
+# Run winget quietly: its progress output goes to its own log file.
+# On failure, the last lines are shown so the problem is visible.
+function Invoke-Winget {
+    param([string]$Name, [string[]]$Arguments)
+    $wlog = Join-Path $LogDir ("winget-{0}-{1}.log" -f ($Name -replace '\W', ''), (Get-Date -Format 'HHmmss'))
+    $ErrorActionPreference = 'Continue'   # Windows PowerShell 5 treats redirected stderr as errors
+    & winget @Arguments --disable-interactivity *> $wlog
+    $code = $LASTEXITCODE
+    return [pscustomobject]@{ Code = $code; Log = $wlog }
+}
+function Show-LogTail { param($path) if (Test-Path $path) { Get-Content $path -Tail 8 | ForEach-Object { Write-Host "         $_" -ForegroundColor DarkGray } } }
+
 $Pwsh = 'C:\Program Files\PowerShell\7\pwsh.exe'
 
 # =============================================================
@@ -190,10 +202,10 @@ function Invoke-Install {
     foreach ($t in $tools) {
         if (Test-Path $t.Check) { Write-OK "$($t.Name) already installed"; continue }
         Write-Step "Installing $($t.Name)..."
-        winget install --id $t.Id --exact --source winget --scope machine --silent `
-            --accept-package-agreements --accept-source-agreements 2>&1 | Out-Host
+        $r = Invoke-Winget $t.Name @('install', '--id', $t.Id, '--exact', '--source', 'winget', '--scope', 'machine',
+                                     '--silent', '--accept-package-agreements', '--accept-source-agreements')
         if (Test-Path $t.Check) { Write-OK "$($t.Name) installed" }
-        else { Stop-Setup "$($t.Name) did not install (winget exit code $LASTEXITCODE)." }
+        else { Show-LogTail $r.Log; Stop-Setup "$($t.Name) did not install (winget exit code $($r.Code))." }
     }
 
     Write-OK 'Software installed'
@@ -225,9 +237,10 @@ function Install-Anaconda {
     }
 
     $override = '/S /InstallationType=JustMe /RegisterPython=1 /AddToPath=0 /D={0}' -f $AnacondaDir
-    Write-Step 'Installing Anaconda...'
-    winget install --id Anaconda.Anaconda3 --exact --source winget --scope user --silent `
-        --accept-package-agreements --accept-source-agreements --override $override 2>&1 | Out-Host
+    Write-Step 'Installing Anaconda: about 1 GB to download, then several minutes of setup.'
+    Write-Host '         The window may look idle for 10-15 minutes. Do not close it.' -ForegroundColor Yellow
+    $r = Invoke-Winget 'Anaconda' @('install', '--id', 'Anaconda.Anaconda3', '--exact', '--source', 'winget', '--scope', 'user',
+                                    '--silent', '--accept-package-agreements', '--accept-source-agreements', '--override', $override)
 
     if (-not (Test-Path $PythonExe)) {
         Write-Warn 'winget could not install Anaconda -- downloading the installer directly...'
@@ -244,7 +257,7 @@ function Install-Anaconda {
         Start-Process -FilePath $tmp -ArgumentList $override -Wait
     }
 
-    if (-not (Test-Path $PythonExe)) { Stop-Setup 'Anaconda did not install.' }
+    if (-not (Test-Path $PythonExe)) { Show-LogTail $r.Log; Stop-Setup 'Anaconda did not install.' }
     Write-OK 'Anaconda installed'
 }
 

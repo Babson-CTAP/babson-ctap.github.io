@@ -12,6 +12,7 @@
 # =============================================================
 
 $ErrorActionPreference = 'Stop'
+$ProgressPreference   = 'SilentlyContinue'   # progress bars make Windows PowerShell downloads very slow
 
 # Older Windows PowerShell 5 builds may not use TLS 1.2 by default.
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
