@@ -89,6 +89,12 @@ function Invoke-Winget {
 function Show-LogTail { param($path) if (Test-Path $path) { Get-Content $path -Tail 8 | ForEach-Object { Write-Host "         $_" -ForegroundColor DarkGray } } }
 
 $Pwsh = 'C:\Program Files\PowerShell\7\pwsh.exe'
+function Test-PwshWorks {
+    if (-not (Test-Path $Pwsh)) { return $false }
+    try { $v = & $Pwsh -NoProfile -NonInteractive -Command 'Split-Path C:\a\b; $PSVersionTable.PSVersion.Major' 2>$null }
+    catch { return $false }
+    return (($v | Select-Object -Last 1) -eq '7')
+}
 
 # =============================================================
 #  SECTION 2 -- Preflight (Main stage, normal user)
@@ -180,15 +186,21 @@ function Invoke-Install {
     # -- PowerShell 7: classic MSI installer, downloaded directly.
     #    (From 7.7 on, winget only offers a per-user Store-style package,
     #     which cannot be installed machine-wide.)
-    if (Test-Path $Pwsh) { Write-OK 'PowerShell 7 already installed' }
+    if (Test-PwshWorks) { Write-OK 'PowerShell 7 already installed' }
     else {
+        if (Test-Path $Pwsh) { Write-Warn 'PowerShell 7 is damaged -- reinstalling it.' }
         Write-Step 'Installing PowerShell 7...'
         $msi = Join-Path $env:TEMP 'PowerShell-7-win-x64.msi'
         try { Invoke-WebRequest -Uri $Cfg.PwshMsiUrl -OutFile $msi -UseBasicParsing }
         catch { Stop-Setup "Could not download PowerShell 7 from $($Cfg.PwshMsiUrl)" }
         $proc = Start-Process msiexec.exe -Wait -PassThru -ArgumentList `
-            "/i `"$msi`" /qn /norestart ADD_PATH=1 REGISTER_MANIFEST=1 ENABLE_PSREMOTING=0 ADD_EXPLORER_CONTEXT_MENU_OPENPOWERSHELL=0"
-        if (Test-Path $Pwsh) { Write-OK 'PowerShell 7 installed' }
+            "/i `"$msi`" /qn /norestart REINSTALL=ALL REINSTALLMODE=amus ADD_PATH=1 REGISTER_MANIFEST=1 ENABLE_PSREMOTING=0 ADD_EXPLORER_CONTEXT_MENU_OPENPOWERSHELL=0"
+        if (-not (Test-PwshWorks)) {
+            # REINSTALL only applies when the MSI is registered; try a plain install too
+            $proc = Start-Process msiexec.exe -Wait -PassThru -ArgumentList `
+                "/i `"$msi`" /qn /norestart ADD_PATH=1 REGISTER_MANIFEST=1 ENABLE_PSREMOTING=0 ADD_EXPLORER_CONTEXT_MENU_OPENPOWERSHELL=0"
+        }
+        if (Test-PwshWorks) { Write-OK 'PowerShell 7 installed' }
         else { Stop-Setup "PowerShell 7 did not install (msiexec exit code $($proc.ExitCode))." }
     }
 
@@ -489,9 +501,10 @@ switch ($Stage) {
 
         # Install stage: one Windows "Yes" prompt, waits until done.
         # Skipped on re-runs when everything is already installed.
-        $needed = @($Pwsh, 'C:\Program Files\Git\cmd\git.exe',
+        $needed = @('C:\Program Files\Git\cmd\git.exe',
                     'C:\Program Files\GitHub CLI\gh.exe', 'C:\Program Files\Microsoft VS Code\Code.exe') |
                   Where-Object { -not (Test-Path $_) }
+        if (-not (Test-PwshWorks)) { $needed = @($needed) + $Pwsh }
         if ($needed) {
         Write-Host ''
         Write-Host '  Windows will now ask: "Do you want to allow this app to make changes?"' -ForegroundColor Yellow
@@ -506,7 +519,7 @@ switch ($Stage) {
         } else { Write-OK 'Software already installed' }
 
         # Configure stage: continue in PowerShell 7, same window, normal user.
-        if (-not (Test-Path $Pwsh)) { Stop-Setup 'PowerShell 7 was not found after install.' }
+        if (-not (Test-PwshWorks)) { Stop-Setup 'PowerShell 7 is missing or damaged after install. Restart the computer and run setup again.' }
         & $Pwsh -NoProfile -ExecutionPolicy Bypass -File $ScriptPath -Stage Configure
         $code = $LASTEXITCODE
         try { Stop-Transcript | Out-Null } catch { }

@@ -359,6 +359,11 @@ Write-Warn 'Uninstalling PowerShell 7 last. If you are running this script'
 Write-Warn 'inside pwsh, the session will end after this step.'
 Write-Host ''
 
+# PowerShell 7 cannot be removed while any PowerShell 7 window is open.
+while (Get-Process -Name pwsh -ErrorAction SilentlyContinue) {
+    Write-Warn 'Close every PowerShell 7 window (tabs titled "PowerShell"), then press Enter.'
+    Read-Host '  Press Enter when they are closed' | Out-Null
+}
 Uninstall-ByName 'PowerShell 7*' 'PowerShell 7'
 
 Remove-IfExists 'C:\Program Files\PowerShell\7'                          'PS7 install folder'
