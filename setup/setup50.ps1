@@ -443,16 +443,6 @@ function Connect-GitHub {
     Write-Banner 'Connecting to GitHub'
     Update-SessionPath
 
-    # gh-student extension (published build, no Go needed)
-    if ((gh extension list 2>$null | Out-String) -match 'gh-student') {
-        gh extension upgrade gh-student 2>&1 | Out-Null
-    } else {
-        gh extension install foundation50/gh-student 2>&1 | Out-Null
-    }
-    & gh student --help *> $null
-    if ($LASTEXITCODE -ne 0) { Stop-Setup 'Could not install the gh student tool.' }
-    Write-OK 'gh student tool ready'
-
     # Login (skipped when already logged in)
     gh auth status *> $null
     if ($LASTEXITCODE -ne 0) {
@@ -468,6 +458,19 @@ function Connect-GitHub {
         if ($LASTEXITCODE -ne 0) { Stop-Setup 'GitHub login did not complete.' }
     }
     gh auth setup-git 2>&1 | Out-Null
+
+    # gh-student extension (published build, no Go needed). Needs the login above.
+    if ((gh extension list 2>$null | Out-String) -match 'gh-student') {
+        $extOut = (gh extension upgrade gh-student 2>&1 | Out-String)
+    } else {
+        $extOut = (gh extension install foundation50/gh-student 2>&1 | Out-String)
+    }
+    & gh student --help *> $null
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host $extOut -ForegroundColor DarkGray
+        Stop-Setup 'Could not install the gh student tool (message above).'
+    }
+    Write-OK 'gh student tool ready'
 
     # Who is logged in? Check it is the class account.
     $user = (gh api user --jq .login).Trim()
