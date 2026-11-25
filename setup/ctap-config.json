@@ -12,10 +12,7 @@
   "MinCondaMajor": 23,
   "PwshMsiUrl": "https://github.com/PowerShell/PowerShell/releases/download/v7.6.0/PowerShell-7.6.0-win-x64.msi",
   "InstructorAccounts": [
-    "rslotpole-babson",
-    "rsail"
+    "rslotpole-babson"
   ],
-  "TestAccounts": [
-    "pp353-spring2027"
-  ]
+  "TestAccounts": []
 }
