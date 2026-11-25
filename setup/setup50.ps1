@@ -55,7 +55,24 @@ function Stop-Setup {
     Write-Fail $msg
     Write-Host ''
     Write-Host "  Setup stopped. Fix the problem above, then run setup again." -ForegroundColor Yellow
-    Write-Host "  If you are stuck, email your instructor the log file:" -ForegroundColor Yellow
+    Write-Host "  If you are stuck, email $($Cfg.InstructorEmail) a screenshot of this window" -ForegroundColor Yellow
+    Write-Host "  and this log file:" -ForegroundColor Yellow
+    Write-Host "    $LogFile" -ForegroundColor Yellow
+    try { Stop-Transcript | Out-Null } catch { }
+    if ($Stage -ne 'Main') { Read-Host '  Press Enter to close this window' | Out-Null }
+    exit 1
+}
+
+# For problems a student cannot safely fix alone.
+function Stop-NeedsHelp {
+    param([string]$Found, [string]$Why, [string]$WhatToDo)
+    Write-Host ''
+    Write-Fail "Found: $Found"
+    Write-Host "         Why it matters: $Why" -ForegroundColor Yellow
+    Write-Host "         What to do: $WhatToDo" -ForegroundColor Yellow
+    Write-Host ''
+    Write-Host "  Setup stopped before changing anything. Email $($Cfg.InstructorEmail)" -ForegroundColor Yellow
+    Write-Host '  a screenshot of this window and this log file:' -ForegroundColor Yellow
     Write-Host "    $LogFile" -ForegroundColor Yellow
     try { Stop-Transcript | Out-Null } catch { }
     if ($Stage -ne 'Main') { Read-Host '  Press Enter to close this window' | Out-Null }
@@ -152,6 +169,83 @@ function Invoke-Preflight {
     $pending = (Test-Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending') -or
                (Test-Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired')
     if ($pending) { Write-Warn 'Windows has a restart pending. If an install fails, restart and run setup again.' }
+
+    Invoke-MachineChecks
+}
+
+# Problems older student laptops often have. Checked before anything is installed.
+$script:NeedAdminFix = $false
+function Invoke-MachineChecks {
+    Write-Banner 'Checking for setup conflicts'
+
+    # 1. Windows S mode: only Store apps can run
+    $sku = (Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\CI\Policy' -ErrorAction SilentlyContinue)
+    if ($sku -and $sku.PSObject.Properties['SkuPolicyRequired'] -and $sku.SkuPolicyRequired -eq 1) {
+        Stop-NeedsHelp -Found 'Windows is in S mode.' `
+            -Why 'S mode only allows apps from the Microsoft Store, so Python, Git and VS Code cannot be installed.' `
+            -WhatToDo 'Open Settings > System > Activation > "Switch out of S mode" (free, takes a minute), then run setup again.'
+    }
+    Write-OK 'Windows is not in S mode'
+
+    # 2. User folder with spaces or accented letters: Anaconda cannot install there
+    if ($env:USERPROFILE -match '\s' -or $env:USERPROFILE -match '[^\x00-\x7F]') {
+        Stop-NeedsHelp -Found "Your Windows user folder is '$env:USERPROFILE'." `
+            -Why 'It contains a space or an accented letter, and Anaconda cannot be installed in such a folder.' `
+            -WhatToDo 'Do not rename the folder yourself. Your instructor will help you install Anaconda in a different location.'
+    }
+    Write-OK "User folder name is OK ($env:USERPROFILE)"
+
+    # 3. Another conda / Anaconda / Miniconda besides the course one
+    $ours   = Join-Path $env:USERPROFILE 'anaconda3'
+    $others = @("$env:ProgramData\anaconda3", "$env:ProgramData\miniconda3", "$env:ProgramData\Anaconda3",
+                "$env:USERPROFILE\miniconda3", "$env:LOCALAPPDATA\miniconda3", "$env:LOCALAPPDATA\anaconda3",
+                'C:\anaconda3', 'C:\miniconda3', 'C:\Anaconda', 'C:\Miniconda') |
+              Where-Object { Test-Path (Join-Path $_ 'python.exe') }
+    $reg = Get-ItemProperty 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*',
+                            'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' -ErrorAction SilentlyContinue |
+           Where-Object { $_.PSObject.Properties['DisplayName'] -and $_.DisplayName -match 'Anaconda|Miniconda' -and
+                          $_.PSObject.Properties['InstallLocation'] -and $_.InstallLocation -and
+                          ($_.InstallLocation.TrimEnd('\') -ne $ours) } |
+           ForEach-Object { $_.InstallLocation.TrimEnd('\') }
+    $others = @(@($others) + @($reg) | Where-Object { $_ } | Sort-Object -Unique)
+    if ($others.Count -gt 0) {
+        Stop-NeedsHelp -Found "Another Python distribution is installed: $($others -join ', ')" `
+            -Why 'Two conda installations conflict, and the course would end up using the wrong Python.' `
+            -WhatToDo 'If you no longer need it, uninstall it in Settings > Apps, then run setup again. If you are unsure, ask your instructor.'
+    }
+    Write-OK 'No other conda / Miniconda installations'
+
+    # 4. PYTHONPATH / PYTHONHOME (often left over from old tutorials) break Anaconda
+    foreach ($v in 'PYTHONPATH', 'PYTHONHOME') {
+        $userVal = [Environment]::GetEnvironmentVariable($v, 'User')
+        if ($userVal) {
+            [Environment]::SetEnvironmentVariable($v, $null, 'User')
+            Remove-Item "Env:\$v" -ErrorAction SilentlyContinue
+            Write-Warn "Removed your $v setting (was '$userVal'). It breaks Anaconda's Python."
+        }
+        if ([Environment]::GetEnvironmentVariable($v, 'Machine')) {
+            $script:NeedAdminFix = $true
+            Write-Warn "$v is set for the whole computer. It will be removed during the install step."
+        }
+    }
+    Write-OK 'No PYTHONPATH / PYTHONHOME settings'
+
+    # 5. VS Code installed "just for this user" (setup installs it for the whole computer)
+    $userCodeDir = Join-Path $env:LOCALAPPDATA 'Programs\Microsoft VS Code'
+    $userUnins   = Join-Path $userCodeDir 'unins000.exe'
+    if (Test-Path $userUnins) {
+        Write-Step 'Removing a second copy of VS Code (installed just for you) so only one remains...'
+        Get-Process -Name 'Code' -ErrorAction SilentlyContinue | Stop-Process -Force
+        Start-Process $userUnins -ArgumentList '/VERYSILENT /NORESTART /SUPPRESSMSGBOXES' -Wait
+        if (Test-Path (Join-Path $userCodeDir 'Code.exe')) {
+            Stop-NeedsHelp -Found "A copy of VS Code installed just for you ($userCodeDir) that could not be removed." `
+                -Why 'Two copies of VS Code get confused about settings and extensions.' `
+                -WhatToDo 'Uninstall "Microsoft Visual Studio Code (User)" in Settings > Apps, then run setup again.'
+        }
+        Write-OK 'Extra VS Code copy removed (your extensions and settings are kept)'
+    } else {
+        Write-OK 'No extra VS Code copy'
+    }
 }
 
 # =============================================================
@@ -165,6 +259,15 @@ function Invoke-Install {
 
     if (-not (Test-IsAdmin)) { Stop-Setup 'The install stage must run as Administrator.' }
     Update-SessionPath
+
+    # -- computer-wide PYTHONPATH / PYTHONHOME break Anaconda --
+    foreach ($v in 'PYTHONPATH', 'PYTHONHOME') {
+        $mv = [Environment]::GetEnvironmentVariable($v, 'Machine')
+        if ($mv) {
+            [Environment]::SetEnvironmentVariable($v, $null, 'Machine')
+            Write-Warn "Removed computer-wide $v (was '$mv')."
+        }
+    }
 
     # -- remove conflicting Python installs (python.org and Microsoft Store) --
     Write-Step 'Checking for conflicting Python installations...'
@@ -386,7 +489,13 @@ function Connect-GitHub {
         $id = (gh api user --jq .id).Trim()
         git config --global user.email "$id+$user@users.noreply.github.com"
     }
-    Write-OK "Git identity: $(git config --global user.name) <$(git config --global user.email)>"
+    $gEmail = "$(git config --global user.email)"
+    if ($gEmail -notmatch 'users\.noreply\.github\.com$') {
+        Write-Warn "Git was already set up before this course, so your commits will be signed as:"
+        Write-Warn "  $(git config --global user.name) <$gEmail>  (this is fine; tell your instructor if it is wrong)"
+    } else {
+        Write-OK "Git identity: $(git config --global user.name) <$gEmail>"
+    }
 
     # Invited? (no invite = instructor hasn't added this account yet)
     $state = (gh api "user/memberships/orgs/$($Cfg.Org)" --jq .state 2>$null)
@@ -490,9 +599,15 @@ function Invoke-Configure {
 #  Stage control
 # =============================================================
 
+function Stop-Unexpected {
+    param($err, [string]$where)
+    $line = if ($err.InvocationInfo) { $err.InvocationInfo.ScriptLineNumber } else { '?' }
+    Stop-Setup "Unexpected problem while $where`: $($err.Exception.Message) (setup50.ps1 line $line)"
+}
+
 switch ($Stage) {
 
-    'Main' {
+    'Main' { try {
         Write-Host ''
         Write-Host "  $($Cfg.CourseName)" -ForegroundColor White
         Write-Host "  $($Cfg.Term) setup" -ForegroundColor DarkGray
@@ -505,6 +620,7 @@ switch ($Stage) {
                     'C:\Program Files\GitHub CLI\gh.exe', 'C:\Program Files\Microsoft VS Code\Code.exe') |
                   Where-Object { -not (Test-Path $_) }
         if (-not (Test-PwshWorks)) { $needed = @($needed) + $Pwsh }
+        if ($script:NeedAdminFix)  { $needed = @($needed) + 'admin-fix' }
         if ($needed) {
         Write-Host ''
         Write-Host '  Windows will now ask: "Do you want to allow this app to make changes?"' -ForegroundColor Yellow
@@ -524,16 +640,16 @@ switch ($Stage) {
         $code = $LASTEXITCODE
         try { Stop-Transcript | Out-Null } catch { }
         exit $code
-    }
+    } catch { Stop-Unexpected $_ 'checking this computer' } }
 
     'Install' {
-        Invoke-Install
+        try { Invoke-Install } catch { Stop-Unexpected $_ 'installing software' }
         try { Stop-Transcript | Out-Null } catch { }
         exit 0
     }
 
     'Configure' {
-        Invoke-Configure
+        try { Invoke-Configure } catch { Stop-Unexpected $_ 'configuring' }
         try { Stop-Transcript | Out-Null } catch { }
         exit 0
     }

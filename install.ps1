@@ -49,6 +49,23 @@ foreach ($f in $Files) {
     }
 }
 
+# Instructions for resetting this computer (instructor use)
+$resetText = @'
+OIM 3600 - CTAP: how to reset this computer
+(removes everything setup installed, then setup can be run again)
+
+1. Close every PowerShell window.
+2. Start menu -> type "Windows PowerShell" -> Run as administrator -> Yes.
+   The window title must say "Windows PowerShell" (not just "PowerShell").
+3. Paste this one line and press Enter:
+
+irm https://babson-ctap.github.io/setup/reset-env50.ps1 -OutFile $env:TEMP\reset-env50.ps1; powershell -ExecutionPolicy Bypass -File $env:TEMP\reset-env50.ps1
+
+4. Type RESET when asked. When it finishes, restart the computer.
+5. Run setup again from https://babson-ctap.github.io
+'@
+Set-Content -Path (Join-Path $Root 'reset_command.txt') -Value $resetText -Encoding ascii
+
 # Start setup in a fresh Windows PowerShell process so the
 # execution policy never blocks it.
 & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Root 'setup50.ps1')
